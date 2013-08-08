@@ -1,4 +1,0 @@
-fisher
-======
-
-Fisher forecasting
