@@ -721,6 +721,10 @@ def get_bandpower_realizations(ell,Dl,sky_coverage,depth,beamwidth,delta_ell,num
     windows = make_knox_bandpower_windows(ell,Dl,delta_ell=delta_ell,sky_coverage=sky_coverage,
                                         map_depth=depth, beamwidth=beamwidth)
 
+    #Make num_spectra realizations of Dl, each with gaussian errors dDl added on.
+    if num_spectra > 1:
+        Dl = get_Dl_realization(Dl,dDl, num_spectra)
+
     bandcenters = []
     bandpowers = []
     banderrors = []
@@ -744,6 +748,21 @@ def get_bandpower_realizations(ell,Dl,sky_coverage,depth,beamwidth,delta_ell,num
 #####################################################################################################
 
 #####################################################################################################
+def get_Dl_realization(Dl, dDl, num_spectra):
+    '''
+    Take an input spectrum (in Dl), and Knox error bars for Dl and create num_spectra
+    realizations of Dl, where for each realization Gaussian random noise has been added
+    to the raw Dl with Know error dDl standard deviation.
+    '''
+
+    Dl_realizations = []
+    for i in range(num_spectra):
+        new_Dl = []
+        for j in range(len(Dl)):
+            new_Dl.append(Dl[j] + (dDl[j]*np.random.randn(1) + Dl[j]))
+        Dl_realizations.append(np.array(new_Dl))
+
+    return Dl_realizations
 #####################################################################################################
 
 
