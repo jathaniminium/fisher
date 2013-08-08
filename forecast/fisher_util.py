@@ -698,7 +698,7 @@ def get_cosmomc_bandpowers(ell,Cl,window, dDl=0.,no_errors=True):
 #####################################################################################################
 
 #####################################################################################################
-def get_errors(ell,Dl,sky_coverage,depth,beamwidth,delta_ell):
+def get_bandpower_realizations(ell,Dl,sky_coverage,depth,beamwidth,delta_ell,num_spectra=1):
     '''
     Return band centers, band powers, and band errors.  Assumes Knox formula error bars,
     gaussian beam, and Dl = Cl*ell*(ell+1)/2pi spectrum inputs. 
