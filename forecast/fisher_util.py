@@ -624,6 +624,13 @@ def get_bandpowers(ell,Dl,dDl,window):
     spectrum and errors to get output bandpowers.  This assumes inputs are Dl = Cl*l(l+1)/2pi.
 
     The output bandpowers and errors are: B_i = Sum_l(window_il * Dl), where window_il = W_il/l
+
+    INPUTS:
+        ell: Array of multipole values for the input spectra Dl.
+        Dl: A list of of spectra arrays for which to calculate bandpowers.  Assumes that each have 
+            the same error bars, dDl.
+        dDl: An array of errors as a function of ell.  Only one array, regardless of length of Dl.
+        window: An array of make_knox_bandpower windows created with the theory Dl and dDl.
     '''
     win_ell = window['ell']
     bandcenter = window['ell_center']
@@ -632,26 +639,35 @@ def get_bandpowers(ell,Dl,dDl,window):
     these_indices = []
     for i in range(len(ell)):
         if ell[i] in win_ell:
-         these_indices.append(i)
+            these_indices.append(i)
+         
+    all_bandcenter = []
+    all_bandpower = []
+    all_banderror = []
+    for j in range(len(Dl)):
+        bandpower = 0.
+        banderror = 0.
+        weighted_error = []
+        for i in range(len(these_indices)):
+            bandpower += Dl[j][these_indices[i]] * wldivl[i]
+            weighted_error.append(dDl[these_indices[i]] * wldivl[i])
+            banderror += dDl[these_indices[i]] * wldivl[i]
 
-    bandpower = 0.
-    banderror = 0.
-    banderror = 0.
-    weighted_error = []
-    for i in range(len(these_indices)):
-        bandpower += Dl[these_indices[i]] * wldivl[i]
-        weighted_error.append(dDl[these_indices[i]] * wldivl[i])
-        banderror += dDl[these_indices[i]] * wldivl[i]
+        weighted_error = np.array(weighted_error)
+        #Now sum the weighted errors in a "number of observations" sense to get the final 
+        #bandpower error.
+        min_weighted_error = np.min(weighted_error)
 
-    weighted_error = np.array(weighted_error)
-    #Now sum the weighted errors in a quadrature sense to get the final bandpower error.
-    min_weighted_error = np.min(weighted_error)
+        quad_sum_weight = np.sqrt(np.sum(min_weighted_error/weighted_error))
+        
+        #Unlike the signal bandpower, the banderrors average down in a 1/sqrt(observations) sense.
+        banderror = banderror/quad_sum_weight
+        
+        all_bandcenter.append(bandcenter)
+        all_bandpower.append(bandpower)
+        all_banderror.append(banderror)
 
-    quad_sum_weight = np.sqrt(np.sum((min_weighted_error/weighted_error)**2.))
-
-    banderror = banderror/quad_sum_weight
-
-    return bandcenter, bandpower, banderror
+    return all_bandcenter, all_bandpower, all_banderror
 #####################################################################################################
 
 #####################################################################################################
@@ -724,6 +740,8 @@ def get_bandpower_realizations(ell,Dl,sky_coverage,depth,beamwidth,delta_ell,num
     #Make num_spectra realizations of Dl, each with gaussian errors dDl added on.
     if num_spectra > 1:
         Dl = get_Dl_realization(Dl,dDl, num_spectra)
+    else:
+        Dl = [Dl]
 
     bandcenters = []
     bandpowers = []
@@ -735,16 +753,25 @@ def get_bandpower_realizations(ell,Dl,sky_coverage,depth,beamwidth,delta_ell,num
         bandpowers.append(this_bandpower)
         banderrors.append(this_banderror)
 
-    bandcenters = np.array(bandcenters)
-    bandpowers = np.array(bandpowers)
-    banderrors = np.array(banderrors)
+    #Now take the average of each bandpower to spit out the average bandpower spectrum.
+    avg_bandcenters = []
+    avg_bandpowers = []
+    avg_banderrors = []
+    for i in range(len(bandcenters)):
+        avg_bandcenters.append(np.mean(bandcenters[i]))
+        avg_bandpowers.append(np.mean(bandpowers[i]))
+        avg_banderrors.append(np.mean(banderrors[i]))
 
-    sorted_indices = sorted(range(len(bandcenters)), key=lambda k: bandcenters[k])
-    bandcenters = bandcenters[sorted_indices]
-    bandpowers = bandpowers[sorted_indices]
-    banderrors = banderrors[sorted_indices]
+    avg_bandcenters = np.array(avg_bandcenters)
+    avg_bandpowers = np.array(avg_bandpowers)
+    avg_banderrors = np.array(avg_banderrors)
 
-    return bandcenters, bandpowers, banderrors
+    sorted_indices = sorted(range(len(avg_bandcenters)), key=lambda k: avg_bandcenters[k])
+    avg_bandcenters = avg_bandcenters[sorted_indices]
+    avg_bandpowers = avg_bandpowers[sorted_indices]
+    avg_banderrors = avg_banderrors[sorted_indices]
+
+    return avg_bandcenters, avg_bandpowers, avg_banderrors
 #####################################################################################################
 
 #####################################################################################################
@@ -760,8 +787,8 @@ def get_Dl_realization(Dl, dDl, num_spectra):
         new_Dl = []
         for j in range(len(Dl)):
             new_Dl.append(Dl[j] + (dDl[j]*np.random.randn(1) + Dl[j]))
-        Dl_realizations.append(np.array(new_Dl))
-
+        Dl_realizations.append(new_Dl)
+    
     return Dl_realizations
 #####################################################################################################
 
