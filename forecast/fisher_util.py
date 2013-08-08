@@ -618,10 +618,10 @@ def make_knox_bandpower_windows(ell, Dl, delta_ell=50., sky_coverage=535., map_d
 #####################################################################################################
 
 #####################################################################################################
-def get_bandpowers(ell,Dl,dDl,window):
+def get_bandpower(ell,Dl,dDl,window):
     '''
     Takes windows generated with make_knox_bandpower_windows and weights and bins the input 
-    spectrum and errors to get output bandpowers.  This assumes inputs are Dl = Cl*l(l+1)/2pi.
+    spectrum and errors to get output bandpower.  This assumes inputs are Dl = Cl*l(l+1)/2pi.
 
     The output bandpowers and errors are: B_i = Sum_l(window_il * Dl), where window_il = W_il/l
 
@@ -641,33 +641,26 @@ def get_bandpowers(ell,Dl,dDl,window):
         if ell[i] in win_ell:
             these_indices.append(i)
          
-    all_bandcenter = []
-    all_bandpower = []
-    all_banderror = []
-    for j in range(len(Dl)):
-        bandpower = 0.
-        banderror = 0.
-        weighted_error = []
-        for i in range(len(these_indices)):
-            bandpower += Dl[j][these_indices[i]] * wldivl[i]
-            weighted_error.append(dDl[these_indices[i]] * wldivl[i])
-            banderror += dDl[these_indices[i]] * wldivl[i]
 
-        weighted_error = np.array(weighted_error)
-        #Now sum the weighted errors in a "number of observations" sense to get the final 
-        #bandpower error.
-        min_weighted_error = np.min(weighted_error)
+    bandpower = 0.
+    banderror = 0.
+    weighted_error = []
+    for i in range(len(these_indices)):
+        bandpower += Dl[these_indices[i]] * wldivl[i]
+        weighted_error.append(dDl[these_indices[i]] * wldivl[i])
+        banderror += dDl[these_indices[i]] * wldivl[i]
 
-        quad_sum_weight = np.sqrt(np.sum(min_weighted_error/weighted_error))
+    weighted_error = np.array(weighted_error)
+    #Now sum the weighted errors in a "number of observations" sense to get the final 
+    #bandpower error.
+    min_weighted_error = np.min(weighted_error)
+
+    quad_sum_weight = np.sqrt(np.sum(min_weighted_error/weighted_error))
         
-        #Unlike the signal bandpower, the banderrors average down in a 1/sqrt(observations) sense.
-        banderror = banderror/quad_sum_weight
-        
-        all_bandcenter.append(bandcenter)
-        all_bandpower.append(bandpower)
-        all_banderror.append(banderror)
+    #Unlike the signal bandpower, the banderrors average down in a 1/sqrt(observations) sense.
+    banderror = banderror/quad_sum_weight
 
-    return all_bandcenter, all_bandpower, all_banderror
+    return bandcenter, bandpower, banderror
 #####################################################################################################
 
 #####################################################################################################
@@ -704,7 +697,7 @@ def get_cosmomc_bandpowers(ell,Cl,window, dDl=0.,no_errors=True):
         #Now sum the weighted errors in a quadrature sense to get the final bandpower error.
         min_weighted_error = np.min(weighted_error)
 
-        quad_sum_weight = np.sqrt(np.sum((min_weighted_error/weighted_error)**2.))
+        quad_sum_weight = np.sqrt(np.sum(min_weighted_error/weighted_error))
 
         banderror = banderror/quad_sum_weight
 
@@ -714,7 +707,8 @@ def get_cosmomc_bandpowers(ell,Cl,window, dDl=0.,no_errors=True):
 #####################################################################################################
 
 #####################################################################################################
-def get_bandpower_realizations(ell,Dl,sky_coverage,depth,beamwidth,delta_ell,num_spectra=1):
+def get_bandpower_spectrum(ell,Dl,sky_coverage,depth,beamwidth,delta_ell,do_random=False,
+                           windows=None):
     '''
     Return band centers, band powers, and band errors.  Assumes Knox formula error bars,
     gaussian beam, and Dl = Cl*ell*(ell+1)/2pi spectrum inputs. 
@@ -732,64 +726,52 @@ def get_bandpower_realizations(ell,Dl,sky_coverage,depth,beamwidth,delta_ell,num
         bandpowers: Effective bandpowers for delta_ell binned Dls.
         banderrors: Knox formula error bars assuming a purely Gaussian beam.
     '''
-    dDl = get_knox_errors(ell,Dl,sky_coverage=sky_coverage,map_depth=depth, 
+    if not do_random:
+        dDl = get_knox_errors(ell,Dl,sky_coverage=sky_coverage,map_depth=depth, 
                            beamwidth=beamwidth)
-    windows = make_knox_bandpower_windows(ell,Dl,delta_ell=delta_ell,sky_coverage=sky_coverage,
-                                        map_depth=depth, beamwidth=beamwidth)
-
-    #Make num_spectra realizations of Dl, each with gaussian errors dDl added on.
-    if num_spectra > 1:
-        Dl = get_Dl_realization(Dl,dDl, num_spectra)
     else:
-        Dl = [Dl]
+        dDl = np.zeros(len(ell))
+    if windows == None:
+        windows = make_knox_bandpower_windows(ell,Dl,delta_ell=delta_ell,sky_coverage=sky_coverage,
+                                        map_depth=depth, beamwidth=beamwidth)
 
     bandcenters = []
     bandpowers = []
     banderrors = []
     for key in windows.keys():
         window = windows[key]
-        this_bandcenter, this_bandpower, this_banderror = get_bandpowers(ell,Dl,dDl,window)
+        this_bandcenter, this_bandpower, this_banderror = get_bandpower(ell,Dl,dDl,window)
         bandcenters.append(this_bandcenter)
         bandpowers.append(this_bandpower)
         banderrors.append(this_banderror)
 
-    #Now take the average of each bandpower to spit out the average bandpower spectrum.
-    avg_bandcenters = []
-    avg_bandpowers = []
-    avg_banderrors = []
-    for i in range(len(bandcenters)):
-        avg_bandcenters.append(np.mean(bandcenters[i]))
-        avg_bandpowers.append(np.mean(bandpowers[i]))
-        avg_banderrors.append(np.mean(banderrors[i]))
+    bandcenters = np.array(bandcenters)
+    bandpowers = np.array(bandpowers)
+    banderrors = np.array(banderrors)
 
-    avg_bandcenters = np.array(avg_bandcenters)
-    avg_bandpowers = np.array(avg_bandpowers)
-    avg_banderrors = np.array(avg_banderrors)
+    sorted_indices = sorted(range(len(bandcenters)), key=lambda k: bandcenters[k])
+    bandcenters = bandcenters[sorted_indices]
+    bandpowers = bandpowers[sorted_indices]
+    banderrors = banderrors[sorted_indices]
 
-    sorted_indices = sorted(range(len(avg_bandcenters)), key=lambda k: avg_bandcenters[k])
-    avg_bandcenters = avg_bandcenters[sorted_indices]
-    avg_bandpowers = avg_bandpowers[sorted_indices]
-    avg_banderrors = avg_banderrors[sorted_indices]
-
-    return avg_bandcenters, avg_bandpowers, avg_banderrors
+    return bandcenters, bandpowers, banderrors
 #####################################################################################################
 
 #####################################################################################################
-def get_Dl_realization(Dl, dDl, num_spectra):
+def get_Dl_realization(Dl, dDl):
     '''
     Take an input spectrum (in Dl), and Knox error bars for Dl and create num_spectra
     realizations of Dl, where for each realization Gaussian random noise has been added
     to the raw Dl with Know error dDl standard deviation.
     '''
 
-    Dl_realizations = []
-    for i in range(num_spectra):
-        new_Dl = []
-        for j in range(len(Dl)):
-            new_Dl.append(Dl[j] + (dDl[j]*np.random.randn(1) + Dl[j]))
-        Dl_realizations.append(new_Dl)
+    new_Dl = []
+    for j in range(len(Dl)):
+        new_Dl.append(Dl[j] + dDl[j]*np.random.randn(1)[0])
+
+    new_Dl = np.array(new_Dl)
     
-    return Dl_realizations
+    return new_Dl
 #####################################################################################################
 
 
