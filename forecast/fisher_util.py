@@ -774,6 +774,30 @@ def get_Dl_realization(Dl, dDl):
     return new_Dl
 #####################################################################################################
 
+#####################################################################################################
+def get_cov_matrix(bandpowers1, avg_bandpowers1, bandpowers2=None, avg_bandpowers2=None):
+    '''
+    Calculate bandpower spectrum covariance matrix for two sets of bandpowers.  If bandpowers2 and
+    its avg are left set to None, then the outout is the covariance of the spectrum with itself.
+    '''
+
+    if bandpowers2 == None:
+        bandpowers2 = bandpowers1
+    if avg_bandpowers2 == None:
+        avg_bandpowers2 = avg_bandpowers1
+
+    cov = np.zeros((len(avg_bandpowers1),len(avg_bandpowers1)))
+    for i in range(len(bandpowers1)):
+        spectrum1 = bandpowers1[i] - avg_bandpowers1
+        spectrum2 = bandpowers2[i] - avg_bandpowers2
+
+        cov += np.dot(spectrum1.T, spectrum2)
+
+    cov /= len(bandpowers1) - 1.
+
+    return cov
+#####################################################################################################
+
 
 
 
