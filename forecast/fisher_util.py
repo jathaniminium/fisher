@@ -791,7 +791,11 @@ def get_cov_matrix(bandpowers1, avg_bandpowers1, bandpowers2=None, avg_bandpower
         spectrum1 = bandpowers1[i] - avg_bandpowers1
         spectrum2 = bandpowers2[i] - avg_bandpowers2
 
+        #####!!!!!!!!######
+        #This isn't right.  I think one of the two spectra below needs to be first dotted with
+        #an identity matrix to make a 2D array.
         cov += np.dot(spectrum1.T, spectrum2)
+        #############################
 
     cov /= len(bandpowers1) - 1.
 
