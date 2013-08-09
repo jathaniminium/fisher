@@ -109,6 +109,8 @@ def plot_EE(ell,bandpower,banderror=None, tell=None,tEE=None,
     py.title('EE Power Spectrum')
     if ylog:
         py.legend(loc=3)
+    elif xlog and ylog:
+        py.legend(loc=2)
     else:
         py.legend()
 
@@ -163,7 +165,9 @@ def plot_BB(ell,bandpower,banderror=None, tell=None,tBB=None,
     py.ylabel('$l(l+1)/2\pi\, C^{BB}_l$'+' [$\mu$'+'K'+'$^2$]')
     py.title('BB Power Spectrum')
     if ylog:
-        py.legend(loc=4)
+        py.legend(loc=7)
+    elif xlog and ylog:
+        py.legend(loc=2)
     else:
         py.legend()
     
