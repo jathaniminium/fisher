@@ -3,9 +3,11 @@ import numpy as np
 import fisher.utils.plotting as pt
 import fisher.forecast.fisher_util as ut
 
-d = pk.load(open('spectra_realizations_100_skyCoverage100.0_Tdepth9.0_Pdepth10.0.pkl', 'r'))
-d2 = pk.load(open('spectra_realizations_100_skyCoverage535.0_Tdepth10.6_Pdepth13.9.pkl', 'r'))
-d3 = pk.load(open('spectra_realizations_100_skyCoverage625.0_Tdepth5.0_Pdepth7.0.pkl', 'r'))
+bandpower_dir = '/Users/jason/codes/fisher/bandpowers/'
+
+d = pk.load(open(bandpower_dir+'spectra_realizations_100_skyCoverage100.0_Tdepth9.0_Pdepth10.0.pkl', 'r'))
+d2 = pk.load(open(bandpower_dir+'spectra_realizations_100_skyCoverage535.0_Tdepth10.6_Pdepth13.9.pkl', 'r'))
+d3 = pk.load(open(bandpower_dir+'spectra_realizations_100_skyCoverage625.0_Tdepth5.0_Pdepth7.0.pkl', 'r'))
 
 avg_bandcenterT2012 = d['avg_bandcenterT']
 avg_bandpowerT2012 = d['avg_bandpowerT']
@@ -54,3 +56,7 @@ pt.plot_EE(avg_bandcenterE2015proj, avg_bandpowerE2015proj, avg_banderrorE2015pr
 pt.plot_BB(avg_bandcenterB2012, avg_bandpowerB2012, avg_banderrorB2012, tell=tell, tBB=tBB, label='2012 Knox', color='b', plot_theory=True, ylog=True, new_figure=True, xlog=False, xlim=[2,9000])
 pt.plot_BB(avg_bandcenterB2013, avg_bandpowerB2013, avg_banderrorB2013, tell=tell, tBB=tBB, label='2013 Knox', color='r', plot_theory=False, ylog=True, xlog=False, xlim=[2,9000])
 pt.plot_BB(avg_bandcenterB2015proj, avg_bandpowerB2015proj, avg_banderrorB2015proj, tell=tell, tBB=tBB, label='2015 Projection', color='k', plot_theory=False, ylog=True, xlog=False, xlim=[2,9000])
+
+
+#Get the cov of two spectra.
+cov_TT = ut.get_cov_matrix(d['Tpower'], avg_bandpowerT2012)
