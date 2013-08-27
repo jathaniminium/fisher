@@ -11,7 +11,7 @@ windows90 = pk.load(open('windows_1_skyCoverage100.0_Tdepth30.75_Pdepth34.4_EEps
 
 lmin = 500.
 lmax = 3000.
-order=1
+order=0
 
 data_ell = bands150['Tcenter']
 
