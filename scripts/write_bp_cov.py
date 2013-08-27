@@ -11,6 +11,7 @@ windows90 = pk.load(open('windows_1_skyCoverage100.0_Tdepth30.75_Pdepth34.4_EEps
 
 lmin = 500.
 lmax = 3000.
+order=1
 
 data_ell = bands150['Tcenter']
 
@@ -35,7 +36,7 @@ for i in range(len(mu)):
                                      good_bands=where_good_band,
                                      bandpowers2=sims[j][:], avg_bandpowers2=mu[j],
                                      return_rho=False,
-                                     condition=True, order=2)
+                                     condition=True, order=order)
         else:
             this_cov = ut.get_cov_matrix(bandpowers1=sims[i][:], avg_bandpowers1=mu[i],
                                      good_bands=where_good_band,
