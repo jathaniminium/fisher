@@ -2,7 +2,7 @@ import numpy as np
 import pylab as py
 import glob as glob
 import copy
-
+from fisher.newdat.condition_cov_matrix import condition_cov_matrix as ccm
 #####################################################################################################
 def read_spectra(filename, withphi=False, raw=False):
     '''
@@ -775,10 +775,13 @@ def get_Dl_realization(Dl, dDl):
 #####################################################################################################
 
 #####################################################################################################
-def get_cov_matrix(bandpowers1, avg_bandpowers1, bandpowers2=None, avg_bandpowers2=None):
+def get_cov_matrix(bandpowers1, avg_bandpowers1, 
+                   good_bands,
+                   bandpowers2=None, avg_bandpowers2=None,
+                   return_rho=True, condition=True, order=5):
     '''
     Calculate bandpower spectrum covariance matrix for two sets of bandpowers.  If bandpowers2 and
-    its avg are left set to None, then the outout is the covariance of the spectrum with itself.
+    its avg are left set to None, then the output is the covariance of the spectrum with itself.
     '''
 
     if bandpowers2 == None:
@@ -786,20 +789,31 @@ def get_cov_matrix(bandpowers1, avg_bandpowers1, bandpowers2=None, avg_bandpower
     if avg_bandpowers2 == None:
         avg_bandpowers2 = avg_bandpowers1
 
-    cov = np.zeros((len(avg_bandpowers1),len(avg_bandpowers1)))
+    cov = np.zeros((len(good_bands),len(good_bands)))
     for i in range(len(bandpowers1)):
-        spectrum1 = bandpowers1[i] - avg_bandpowers1
-        spectrum2 = bandpowers2[i] - avg_bandpowers2
+        #Need to make these 2D, not just 1D
+        spectrum1 = np.array([bandpowers1[i][good_bands] - avg_bandpowers1[good_bands]]) 
+        spectrum2 = np.array([bandpowers2[i][good_bands] - avg_bandpowers2[good_bands]])
 
-        #####!!!!!!!!######
-        #This isn't right.  I think one of the two spectra below needs to be first dotted with
-        #an identity matrix to make a 2D array.
         cov += np.dot(spectrum1.T, spectrum2)
-        #############################
 
     cov /= len(bandpowers1) - 1.
 
-    return cov
+    #Now calculate the correlation matrix.
+    if return_rho:
+        rho = cov*0.0
+        for i in range(cov.shape[0]):
+            for j in range(cov.shape[1]):
+                rho[i,j] = cov[i,j]/np.sqrt(cov[i,i]*cov[j,j])
+
+    #If requested,  condition the cov matrix.
+    if condition:
+        cov = ccm(cov, order=order, noaverage=False)
+        
+    if return_rho:
+        return cov, rho
+    else:
+        return cov
 #####################################################################################################
 
 

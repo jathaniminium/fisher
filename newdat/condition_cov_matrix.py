@@ -65,6 +65,9 @@ def condition_cov_matrix(cov, order=5, noaverage=False):
     cond_cov = np.zeros((bands,bands))
     for i in range(bands):
         for j in range(bands):
-            cond_cov[i,j] = rho[i,j]*np.sqrt(cov[i,i]*cov[j,j])
+            if rho[i,j] != 0.0:
+                cond_cov[i,j] = rho[i,j]*np.sqrt(cov[i,i]*cov[j,j])
+            else:
+                cond_cov[i,j] = 0.0
 
     return cond_cov

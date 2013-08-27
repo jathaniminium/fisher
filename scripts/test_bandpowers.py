@@ -6,7 +6,7 @@ import fisher.forecast.fisher_util as ut
 
 ##########################################################################################
 camb_file = '../cambfits/planck_lensing_wp_highL_bestFit_20130627_massive0p046_massive3_lensedtotCls.dat'
-raw = False
+raw = False #We want inputs to bandpower averaging to be in Dl.
 delta_ell = 50.
 beamwidth = 1.17
 
@@ -15,16 +15,23 @@ sky_coverage = 100.
 #sky_coverage = 535.
 
 #Field depths
-Tdepth = 9.
-Pdepth = 10.
-#Tdepth2013 = 10.6
-#Pdepth2013 = 13.9
+Tdepth = 9.0
+Pdepth = 10.0
 
-num_spectra = 2
+#Foregrounds (D_{3000} values in \muK^2)
+czero_psEE = 0.5
+czero_psBB = 0.05
+
+num_spectra = 1
 
 ########################################################################################
 #Get raw spectrum
 tell, tTT, tEE, tBB, tTE = ut.read_spectra(camb_file, raw=raw)
+
+#Add foregrounds, if requested.
+d3000 = 3000.*(3001.)/(2.*np.pi)
+tEE += czero_psEE*tell*(tell+1.)/(2.*np.pi)/d3000
+tBB += czero_psBB*tell*(tell+1.)/(2.*np.pi)/d3000
 
 Tcenter = []
 Tpower = []
@@ -69,6 +76,16 @@ else:
     windowsTE = ut.make_knox_bandpower_windows(tell,tTT,delta_ell=delta_ell,sky_coverage=sky_coverage,
                                              map_depth=np.sqrt(Tdepth*Pdepth), beamwidth=beamwidth)
 
+    windows = {}
+    windows['windowsT'] = windowsT
+    windows['windowsE'] = windowsE
+    windows['windowsB'] = windowsB
+    windows['windowsTE'] = windowsTE
+
+    pk.dump(windows, open('windows_'+str(num_spectra)+'_skyCoverage'+str(sky_coverage)+
+             '_Tdepth'+str(Tdepth)+'_Pdepth'+str(Pdepth)+'_EEps'+str(czero_psEE)+'_BBps'+str(czero_psBB)+'.pkl','w'))
+
+
     for i in range(num_spectra):
         print 'Calculating realization ', i+1, ' / ', num_spectra
         dDlTT = ut.get_knox_errors(tell,tTT,sky_coverage=sky_coverage,map_depth=Tdepth,beamwidth=beamwidth)
@@ -79,7 +96,6 @@ else:
                                                                      beamwidth=beamwidth, 
                                                                      delta_ell=delta_ell,do_random=True,
                                                                      windows=windowsT)
-
         Tcenter.append(thiscenter)
         Tpower.append(thispower)
         Terror.append(thiserror)
@@ -93,7 +109,6 @@ else:
                                                                      beamwidth=beamwidth, 
                                                                      delta_ell=delta_ell,do_random=True,
                                                                      windows=windowsE)
-
         Ecenter.append(thiscenter)
         Epower.append(thispower)
         Eerror.append(thiserror)
@@ -107,7 +122,6 @@ else:
                                                                      beamwidth=beamwidth, 
                                                                      delta_ell=delta_ell,do_random=True,
                                                                      windows=windowsB)
-
         Bcenter.append(thiscenter)
         Bpower.append(thispower)
         Berror.append(thiserror)
@@ -122,7 +136,6 @@ else:
                                                                      beamwidth=beamwidth, 
                                                                      delta_ell=delta_ell,do_random=True,
                                                                      windows=windowsTE)
-
         TEcenter.append(thiscenter)
         TEpower.append(thispower)
         TEerror.append(thiserror)
@@ -174,7 +187,7 @@ else:
     output_spectra['TEpower'] = TEpower
 
     f = open('spectra_realizations_'+str(num_spectra)+'_skyCoverage'+str(sky_coverage)+
-             '_Tdepth'+str(Tdepth)+'_Pdepth'+str(Pdepth)+'.pkl', 'w')
+             '_Tdepth'+str(Tdepth)+'_Pdepth'+str(Pdepth)+'_EEps'+str(czero_psEE)+'_BBps'+str(czero_psBB)+'.pkl', 'w')
     pk.dump(output_spectra, f)
     f.close()
     
