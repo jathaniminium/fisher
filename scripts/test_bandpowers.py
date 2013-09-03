@@ -15,6 +15,8 @@ sky_coverage = 100.
 #sky_coverage = 535.
 
 #Field depths
+#Tdepth = 30.75
+#Pdepth = 34.4
 Tdepth = 9.0
 Pdepth = 10.0
 
@@ -22,7 +24,7 @@ Pdepth = 10.0
 czero_psEE = 0.5
 czero_psBB = 0.05
 
-num_spectra = 1
+num_spectra = 0
 
 ########################################################################################
 #Get raw spectrum

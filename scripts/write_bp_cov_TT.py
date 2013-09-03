@@ -15,19 +15,19 @@ order=0
 
 data_ell = bands150['Tcenter']
 
-mu = [np.array(bands150['avg_bandpowerTE']), 
-      #np.array(bands150['avg_bandpowerE']),
+mu = [#np.array(bands150['avg_bandpowerTE']), 
+      np.array(bands150['avg_bandpowerT']),
       #(np.array(bands90['avg_bandpowerTE'])+np.array(bands150['avg_bandpowerTE']))/2., 
       #(np.array(bands90['avg_bandpowerE'])+np.array(bands150['avg_bandpowerE']))/2.,
-      np.array(bands90['avg_bandpowerTE'])]#, 
-      #np.array(bands90['avg_bandpowerE'])]
+      #np.array(bands90['avg_bandpowerTE']), 
+      np.array(bands90['avg_bandpowerT'])]
 
-sims = [np.array(bands150['TEpower']), 
-        #np.array(bands150['Epower']),
+sims = [#np.array(bands150['TEpower']), 
+        np.array(bands150['Tpower']),
         #(np.array(bands90['TEpower'])+np.array(bands150['TEpower']))/2., 
         #(np.array(bands90['Epower'])+np.array(bands150['Epower']))/2.,
-        np.array(bands90['TEpower'])]#,
-        #np.array(bands90['Epower'])]
+        #np.array(bands90['TEpower']),
+        np.array(bands90['Tpower'])]
 
 where_good_band = np.nonzero((data_ell[0] > lmin) & (data_ell[0] < lmax) )[0]
 
@@ -63,13 +63,12 @@ full_cov_output = full_cov.reshape([1,full_cov.shape[0]**2.])[0]
 
 
 #Pull the first sim of each spectrum to make our "measured" bandpowers.
-#all_bp_output = sims[0][0][where_good_band]
 all_bp_output = np.concatenate((sims[0][0][where_good_band], sims[1][0][where_good_band]), axis=0) 
 #sims[2][0][where_good_band],
                          #sims[3][0][where_good_band]), axis=0) #sims[4][0][where_good_band], sims[5][0][where_good_band]), axis=0)
 
 #Write out the full covariance matrix.
-f = open('sptpol_2012_testTE.cov_file', 'w')
+f = open('sptpol_2012_testTT.cov_file', 'w')
 for i in range(len(full_cov_output)):
     f.write(' \t'+str(full_cov_output[i])+'\n')
 f.close()
@@ -80,31 +79,31 @@ for i in range(len(sims)-1):
     bandpower_indices = np.concatenate((bandpower_indices, np.arange(len(where_good_band))), axis=0)
 
 #Write out the bandpowers.
-f = open('sptpol_2012_testTE.bp_file', 'w')
+f = open('sptpol_2012_testTT.bp_file', 'w')
 for i in range(len(all_bp_output)):
     f.write(str(bandpower_indices[i])+'\t'+str(all_bp_output[i])+'\n')
 f.close()
 
 #Now write out the windows
 for i in range(len(mu)):
-    if i==0: 
-        key='windowsTE'
-        data = windows150
     #if i==0: 
-    #    key='windowsE'
+    #    key='windowsTE'
     #    data = windows150
+    if i==0: 
+        key='windowsT'
+        data = windows150
     #elif i==2: 
     #    key='windowsTE'
     #    data = windows150
     #elif i==3: 
     #    key='windowsE'
     #    data = windows150
-    elif i==1: 
-        key='windowsTE'
-        data = windows90
-    #elif i==1: 
-    #    key='windowsE'
+    #elif i==2: 
+    #    key='windowsTE'
     #    data = windows90
+    elif i==1: 
+        key='windowsT'
+        data = windows90
 
     for j in range(len(where_good_band)):
         f = open('window_'+str(1+j+i*len(where_good_band)), 'w')
