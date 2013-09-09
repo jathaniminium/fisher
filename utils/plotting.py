@@ -57,10 +57,70 @@ def plot_TT(ell,bandpower,banderror=None, tell=None,tTT=None,
         py.legend()
 
 
+def plot_TE(ell,bandpower,banderror=None, tell=None,tTE=None,
+               label='', interactive=True, color='b', new_figure=False,
+               xlog=False, ylog=False, xlim=[100,3000], ylim=[-150, 150], plot_theory=True):
+    '''
+    A standard plotter for TE cross-correlation power spectra.
+    '''
+    if interactive==True:
+        py.ion()
+    if new_figure:
+        py.figure()
+
+    if plot_theory:
+        if (tell != None) and (tTE != None):
+            if xlog and not ylog:
+                py.semilogx(tell,tTE, 'k-', label='Theory')
+            elif ylog and not xlog:
+                py.semilogy(tell,np.abs(tTE), 'k-', label='Theory')
+            elif xlog and ylog:
+                py.loglog(tell,np.abs(tTE), 'k-', label='Theory')
+            else:
+                py.plot(tell,tTE, 'k-', label='Theory')
+    else:
+        if xlog and not ylog:
+            py.semilogx()
+        elif ylog and not xlog:
+            py.semilogy()
+        elif xlog and ylog:
+            py.loglog()
+        else:
+            py.plot()
+
+    if banderror != None:
+        py.errorbar(ell,bandpower,banderror, fmt=color, label=label,
+                    elinewidth=2, linestyle='None')
+    else:
+        if xlog and not ylog:
+            py.semilogx(ell,bandpower, color+'+', label=label)
+        elif ylog and not xlog:
+            py.semilogy(ell,bandpower, color+'+', label=label)
+        elif xlog and ylog:
+            py.loglog(ell,bandpower, color+'+', label=label)
+        else:
+            py.plot(ell,bandpower, color+'+', label=label)
+
+    py.xlim((xlim[0],xlim[1]))
+    if ylog:
+        py.ylim((1e-2,ylim[1]))
+    else:
+        py.ylim((ylim[0],ylim[1]))
+    py.xlabel('Multipole $l$')
+    py.ylabel('$l(l+1)/2\pi\, C^{TE}_l$'+' [$\mu$'+'K'+'$^2$]')
+    py.title('TE Power Spectrum')
+    if ylog:
+        py.legend(loc=3)
+    elif xlog and ylog:
+        py.legend(loc=2)
+    else:
+        py.legend()
+
+
 
 def plot_EE(ell,bandpower,banderror=None, tell=None,tEE=None,
                label='', interactive=True, color='b', new_figure=False,
-               xlog=False, ylog=True, xlim=[100,5000], ylim=[0.01, 50], plot_theory=True):
+               xlog=False, ylog=True, xlim=[100,5000], ylim=[0.1, 50], plot_theory=True):
     '''
     A standard plotter for E-mode polarization power spectra.
     '''
