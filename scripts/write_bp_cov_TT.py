@@ -3,14 +3,14 @@ import pickle as pk
 import pylab as py
 import fisher.forecast.fisher_util as ut
 
-bands150 = pk.load(open('spectra_realizations_100_skyCoverage100.0_Tdepth9.0_Pdepth10.0_EEps0.5_BBps0.05.pkl','r'))
-bands90 = pk.load(open('spectra_realizations_100_skyCoverage100.0_Tdepth30.75_Pdepth34.4_EEps0.5_BBps0.05.pkl','r'))
+bands150 = pk.load(open('spectra_realizations_100_skyCoverage535.0_Tdepth10.8_Pdepth14.1_EEps0.5_BBps0.05.pkl','r'))
+bands90 = pk.load(open('spectra_realizations_100_skyCoverage535.0_Tdepth22.2_Pdepth30.0_EEps0.5_BBps0.05.pkl','r'))
 
-windows150 = pk.load(open('windows_1_skyCoverage100.0_Tdepth9.0_Pdepth10.0_EEps0.5_BBps0.05.pkl', 'r'))
-windows90 = pk.load(open('windows_1_skyCoverage100.0_Tdepth30.75_Pdepth34.4_EEps0.5_BBps0.05.pkl', 'r'))
+windows150 = pk.load(open('windows_100_skyCoverage535.0_Tdepth10.8_Pdepth14.1_EEps0.5_BBps0.05.pkl', 'r'))
+windows90 = pk.load(open('windows_100_skyCoverage535.0_Tdepth22.2_Pdepth30.0_EEps0.5_BBps0.05.pkl', 'r'))
 
-lmin = 500.
-lmax = 3000.
+lmin = 100.
+lmax = 3500.
 order=0
 
 data_ell = bands150['Tcenter']
@@ -68,7 +68,7 @@ all_bp_output = np.concatenate((sims[0][0][where_good_band], sims[1][0][where_go
                          #sims[3][0][where_good_band]), axis=0) #sims[4][0][where_good_band], sims[5][0][where_good_band]), axis=0)
 
 #Write out the full covariance matrix.
-f = open('sptpol_2012_testTT.cov_file', 'w')
+f = open('sptpol_2013_testTT.cov_file', 'w')
 for i in range(len(full_cov_output)):
     f.write(' \t'+str(full_cov_output[i])+'\n')
 f.close()
@@ -79,7 +79,7 @@ for i in range(len(sims)-1):
     bandpower_indices = np.concatenate((bandpower_indices, np.arange(len(where_good_band))), axis=0)
 
 #Write out the bandpowers.
-f = open('sptpol_2012_testTT.bp_file', 'w')
+f = open('sptpol_2013_testTT.bp_file', 'w')
 for i in range(len(all_bp_output)):
     f.write(str(bandpower_indices[i])+'\t'+str(all_bp_output[i])+'\n')
 f.close()
