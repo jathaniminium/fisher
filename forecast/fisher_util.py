@@ -543,7 +543,10 @@ def write_window_functions(window_root='window_sptpol_bandpowerT_20130715', wind
 #####################################################################################################
 
 #####################################################################################################
-def get_knox_errors(ell, Dl, sky_coverage, map_depth, beamwidth):
+def get_knox_errors(ell, Dl_T, Dl_E, Dl_B, Dl_TE, sky_coverage, 
+                    map_depth_T, map_depth_P, 
+                    beamwidth, 
+                    sample_var=True, noise_var=True, raw=False):
     '''
     Given an input theory spectrum, sky coverage in deg^2, pixel size in arcminutes, 
     map depth in uK-arcmin, and (gaussian) beam FWHM in arcmins, 
@@ -552,8 +555,9 @@ def get_knox_errors(ell, Dl, sky_coverage, map_depth, beamwidth):
     This assumes the inputs are Dl = Cl*ell*(ell+1)/2pi
     '''
 
-    #First define the weight w
-    w = (map_depth*np.pi/180./60.)**2. #units of (uK-rad)^2
+    #First define the inverse weight w.
+    w_T = (map_depth_T*np.pi/180./60.)**2. #units of (uK-rad)^2
+    w_P = (map_depth_P*np.pi/180./60.)**2. #units of (uK-rad)^2
 
     #Get fsky
     fsky = sky_coverage/(4*np.pi*(180./np.pi)**2.)
@@ -561,22 +565,55 @@ def get_knox_errors(ell, Dl, sky_coverage, map_depth, beamwidth):
     #Get beam sigma in terms of radians.
     sigma_b = beamwidth/np.sqrt(8.*np.log(2))*np.pi/60./180.
 
-    knox_errors = np.sqrt(2./((2.*ell + 1.)*fsky))*(Dl + w*ell*(ell+1.)/2./np.pi *
-                                                         np.exp((ell*sigma_b)**2.))
+    #Define inverse beam function.
+    Bl = np.exp(ell*sigma_b)
 
-    return knox_errors
+    if raw == False:
+        noise_T = (ell*(ell+1.)/2./np.pi * w_T*Bl**2.)
+        noise_P = (ell*(ell+1.)/2./np.pi * w_P*Bl**2.)
+    else:
+        noise_T = w_T*Bl**2.
+        noise_P = w_P*Bl**2.
+
+    sample_err_T = np.sqrt(2./((2.*ell + 1.)*fsky))*Dl_T
+    sample_err_E = np.sqrt(2./((2.*ell + 1.)*fsky))*Dl_E
+    sample_err_B = np.sqrt(2./((2.*ell + 1.)*fsky))*Dl_B
+    sample_err_TE = np.sqrt(1./((2.*ell + 1.)*fsky))*np.sqrt(Dl_TE**2. + Dl_T*Dl_E)
+
+    noise_err_T = np.sqrt(2./((2.*ell + 1.)*fsky)) * noise_T
+    noise_err_E = np.sqrt(2./((2.*ell + 1.)*fsky)) * noise_P
+    noise_err_B = np.sqrt(2./((2.*ell + 1.)*fsky)) * noise_P
+    noise_err_TE = np.sqrt(1./((2.*ell + 1.)*fsky)) * np.sqrt(Dl_E*noise_T + Dl_T*noise_P + noise_T*noise_P)
+
+    sample_err = {'T':sample_err_T,'E':sample_err_E,'B':sample_err_B,'TE':sample_err_TE}
+    noise_err = {'T':noise_err_T,'E':noise_err_E,'B':noise_err_B,'TE':noise_err_TE}
+    total_err = {'T':sample_err_T + noise_err_T,'E':sample_err_E + noise_err_E,'B':sample_err_B + noise_err_B,
+                 'TE':np.sqrt(sample_err_TE**2 + noise_err_TE**2.)}
+
+    if not sample_var and not noise_var:
+        return total_err
+    if sample_var and not noise_var:
+        return sample_err
+    if not sample_var and noise_var:
+        return noise_err
+    if sample_var and noise_var:
+        return sample_err, noise_err
     
 #####################################################################################################
 
 #####################################################################################################
-def make_knox_bandpower_windows(ell, Dl, delta_ell=50., sky_coverage=535., map_depth=11., beamwidth=1.1):
+def make_knox_bandpower_windows(ell, Dl_T, Dl_E, Dl_B, Dl_TE, 
+                                delta_ell=50., sky_coverage=535., 
+                                map_depth_T=10., map_depth_P = 11., 
+                                beamwidth=1.17,
+                                raw=False):
     '''
     Assumes inputs are Dl = Cl * ell*(ell+1)/2pi
     '''
 
-    
     #First define the weight w
-    w = (map_depth*np.pi/180./60.)**2. #units of (uK-rad)^2
+    w_T = (map_depth_T*np.pi/180./60.)**2. #units of (uK-rad)^2
+    w_P = (map_depth_P*np.pi/180./60.)**2. #units of (uK-rad)^2
 
     #Get fsky
     fsky = sky_coverage/(4*np.pi*(180./np.pi)**2.)
@@ -584,41 +621,118 @@ def make_knox_bandpower_windows(ell, Dl, delta_ell=50., sky_coverage=535., map_d
     #Get beam sigma in terms of radians
     sigma_b = beamwidth/np.sqrt(8.*np.log(2))*np.pi/60./180.
 
+    #Define inverse beam function.
+    Bl = np.exp(ell*sigma_b)
+
     #Now define the Fisher matrix (basically inverse of knox error^2) divided 
     #by kronecker \delta_llprime
-    fl = (2.*ell + 1.)*fsky/2. * (Dl + w*ell*(ell+1.)*np.exp((ell*sigma_b)**2.)/2./np.pi)**-2. 
+    if raw == True:
+        pass
+    else:
+        w_T *= ell*(ell+1.)/2./np.pi
+        w_P *= ell*(ell+1.)/2./np.pi
+    fl_T = (2.*ell + 1.)*fsky/2. * (Dl_T + w_T*Bl**2.)**-2. 
+    fl_E = (2.*ell + 1.)*fsky/2. * (Dl_E + w_P*Bl**2.)**-2. 
+    fl_B = (2.*ell + 1.)*fsky/2. * (Dl_B + w_P*Bl**2.)**-2.
+    fl_TE = (2.*ell + 1.)*fsky * (Dl_TE**2. + (Dl_T + w_T*Bl**2.)*(Dl_E + w_P*Bl**2.))**-1.
 
+ 
     #Now loop over each bandpower bin
-    windows = {}
+    windows = {'windowsT':{}, 'windowsE':{}, 'windowsB':{}, 'windowsTE':{}}
     counter = 0
     for i in range(len(ell)):
         if ell[i]%delta_ell != 0.:
             if ell[i] == 2. or ell[i]%delta_ell == 1.:
                 counter += 1
-                windows['window_'+str(counter)] = {}
-                windows['window_'+str(counter)]['ell'] = []
-                windows['window_'+str(counter)]['wldivl'] = []
-            windows['window_'+str(counter)]['wldivl'].append(fl[i])
-            windows['window_'+str(counter)]['ell'].append(ell[i])
+                windows['windowsT']['window_'+str(counter)] = {}
+                windows['windowsT']['window_'+str(counter)]['ell'] = []
+                windows['windowsT']['window_'+str(counter)]['wldivl'] = []
+                
+                windows['windowsE']['window_'+str(counter)] = {}
+                windows['windowsE']['window_'+str(counter)]['ell'] = []
+                windows['windowsE']['window_'+str(counter)]['wldivl'] = []
+
+                windows['windowsB']['window_'+str(counter)] = {}
+                windows['windowsB']['window_'+str(counter)]['ell'] = []
+                windows['windowsB']['window_'+str(counter)]['wldivl'] = []
+
+                windows['windowsTE']['window_'+str(counter)] = {}
+                windows['windowsTE']['window_'+str(counter)]['ell'] = []
+                windows['windowsTE']['window_'+str(counter)]['wldivl'] = []
+
+            windows['windowsT']['window_'+str(counter)]['wldivl'].append(fl_T[i])
+            windows['windowsT']['window_'+str(counter)]['ell'].append(ell[i])
+            windows['windowsE']['window_'+str(counter)]['wldivl'].append(fl_E[i])
+            windows['windowsE']['window_'+str(counter)]['ell'].append(ell[i])
+            windows['windowsB']['window_'+str(counter)]['wldivl'].append(fl_B[i])
+            windows['windowsB']['window_'+str(counter)]['ell'].append(ell[i])
+            windows['windowsTE']['window_'+str(counter)]['wldivl'].append(fl_TE[i])
+            windows['windowsTE']['window_'+str(counter)]['ell'].append(ell[i])
         if ell[i]%delta_ell == 0. or i==len(ell)-1:
             #This is the last ell of the bin.  Append this Fl.
-            windows['window_'+str(counter)]['wldivl'].append(fl[i])
-            windows['window_'+str(counter)]['ell'].append(ell[i])
+            if delta_ell==1.:
+                counter += 1
+                windows['windowsT']['window_'+str(counter)] = {}
+                windows['windowsT']['window_'+str(counter)]['ell'] = [ell[i]]
+                windows['windowsT']['window_'+str(counter)]['wldivl'] = [fl_T[i]]
+
+                windows['windowsE']['window_'+str(counter)] = {}
+                windows['windowsE']['window_'+str(counter)]['ell'] = [ell[i]]
+                windows['windowsE']['window_'+str(counter)]['wldivl'] = [fl_E[i]]
+
+                windows['windowsB']['window_'+str(counter)] = {}
+                windows['windowsB']['window_'+str(counter)]['ell'] = [ell[i]]
+                windows['windowsB']['window_'+str(counter)]['wldivl'] = [fl_B[i]]
+
+                windows['windowsTE']['window_'+str(counter)] = {}
+                windows['windowsTE']['window_'+str(counter)]['ell'] = [ell[i]]
+                windows['windowsTE']['window_'+str(counter)]['wldivl'] = [fl_TE[i]]
+            else:
+                windows['windowsT']['window_'+str(counter)]['wldivl'].append(fl_T[i])
+                windows['windowsT']['window_'+str(counter)]['ell'].append(ell[i])
+                windows['windowsE']['window_'+str(counter)]['wldivl'].append(fl_E[i])
+                windows['windowsE']['window_'+str(counter)]['ell'].append(ell[i])
+                windows['windowsB']['window_'+str(counter)]['wldivl'].append(fl_B[i])
+                windows['windowsB']['window_'+str(counter)]['ell'].append(ell[i])
+                windows['windowsTE']['window_'+str(counter)]['wldivl'].append(fl_TE[i])
+                windows['windowsTE']['window_'+str(counter)]['ell'].append(ell[i])
+                                   
+            
             #Now make the window function an array.
-            windows['window_'+str(counter)]['wldivl'] = np.array(windows['window_'+str(counter)]['wldivl'])
-            windows['window_'+str(counter)]['ell'] = np.array(windows['window_'+str(counter)]['ell'])
+            windows['windowsT']['window_'+str(counter)]['wldivl'] = np.array(windows['windowsT']['window_'+str(counter)]['wldivl'])
+            windows['windowsT']['window_'+str(counter)]['ell'] = np.array(windows['windowsT']['window_'+str(counter)]['ell'])
+            windows['windowsE']['window_'+str(counter)]['wldivl'] = np.array(windows['windowsE']['window_'+str(counter)]['wldivl'])
+            windows['windowsE']['window_'+str(counter)]['ell'] = np.array(windows['windowsE']['window_'+str(counter)]['ell'])
+            windows['windowsB']['window_'+str(counter)]['wldivl'] = np.array(windows['windowsB']['window_'+str(counter)]['wldivl'])
+            windows['windowsB']['window_'+str(counter)]['ell'] = np.array(windows['windowsB']['window_'+str(counter)]['ell'])
+            windows['windowsTE']['window_'+str(counter)]['wldivl'] = np.array(windows['windowsTE']['window_'+str(counter)]['wldivl'])
+            windows['windowsTE']['window_'+str(counter)]['ell'] = np.array(windows['windowsTE']['window_'+str(counter)]['ell'])
+
             #Now normalize by the sum of Fls in the window function.
-            windows['window_'+str(counter)]['wldivl'] /= np.sum(windows['window_'+str(counter)]['wldivl'])
+            windows['windowsT']['window_'+str(counter)]['wldivl'] /= np.sum(windows['windowsT']['window_'+str(counter)]['wldivl'])
+            windows['windowsE']['window_'+str(counter)]['wldivl'] /= np.sum(windows['windowsE']['window_'+str(counter)]['wldivl'])
+            windows['windowsB']['window_'+str(counter)]['wldivl'] /= np.sum(windows['windowsB']['window_'+str(counter)]['wldivl'])
+            windows['windowsTE']['window_'+str(counter)]['wldivl'] /= np.sum(windows['windowsTE']['window_'+str(counter)]['wldivl'])
+
             #Get the effective ell center for the bin.
-            windows['window_'+str(counter)]['ell_center'] = 0.
-            for j in range(len(windows['window_'+str(counter)]['ell'])):
-                windows['window_'+str(counter)]['ell_center'] += windows['window_'+str(counter)]['ell'][j]*\
-                                                                 windows['window_'+str(counter)]['wldivl'][j]
+            windows['windowsT']['window_'+str(counter)]['ell_center'] = 0.
+            windows['windowsE']['window_'+str(counter)]['ell_center'] = 0.
+            windows['windowsB']['window_'+str(counter)]['ell_center'] = 0.
+            windows['windowsTE']['window_'+str(counter)]['ell_center'] = 0.
+            for j in range(len(windows['windowsT']['window_'+str(counter)]['ell'])):
+                windows['windowsT']['window_'+str(counter)]['ell_center'] += windows['windowsT']['window_'+str(counter)]['ell'][j]*\
+                                                                             windows['windowsT']['window_'+str(counter)]['wldivl'][j]
+                windows['windowsE']['window_'+str(counter)]['ell_center'] += windows['windowsE']['window_'+str(counter)]['ell'][j]*\
+                                                                             windows['windowsE']['window_'+str(counter)]['wldivl'][j]
+                windows['windowsB']['window_'+str(counter)]['ell_center'] += windows['windowsB']['window_'+str(counter)]['ell'][j]*\
+                                                                             windows['windowsB']['window_'+str(counter)]['wldivl'][j]
+                windows['windowsTE']['window_'+str(counter)]['ell_center'] += windows['windowsTE']['window_'+str(counter)]['ell'][j]*\
+                                                                             windows['windowsTE']['window_'+str(counter)]['wldivl'][j]
     return windows
 #####################################################################################################
 
 #####################################################################################################
-def get_bandpower(ell,Dl,dDl,window):
+def get_bandpower(ell,Dl_T, Dl_E, Dl_B, Dl_TE, dDl_s,dDl_n, window):
     '''
     Takes windows generated with make_knox_bandpower_windows and weights and bins the input 
     spectrum and errors to get output bandpower.  This assumes inputs are Dl = Cl*l(l+1)/2pi.
@@ -632,35 +746,64 @@ def get_bandpower(ell,Dl,dDl,window):
         dDl: An array of errors as a function of ell.  Only one array, regardless of length of Dl.
         window: An array of make_knox_bandpower windows created with the theory Dl and dDl.
     '''
-    win_ell = window['ell']
-    bandcenter = window['ell_center']
-    wldivl = window['wldivl']
+    win_ell_T = window['T']['ell']
+    win_ell_E = window['E']['ell']
+    win_ell_B = window['B']['ell']
+    win_ell_TE = window['TE']['ell']
+
+    bandcenter = {'T':window['T']['ell_center'], 'E':window['E']['ell_center'],
+                  'B':window['B']['ell_center'], 'TE':window['TE']['ell_center']}
+
+    wldivl_T = window['T']['wldivl']
+    wldivl_E = window['E']['wldivl']
+    wldivl_B = window['B']['wldivl']
+    wldivl_TE = window['TE']['wldivl']
 
     these_indices = []
     for i in range(len(ell)):
-        if ell[i] in win_ell:
+        if ell[i] in win_ell_T:
             these_indices.append(i)
          
 
-    bandpower = 0.
-    banderror = 0.
-    weighted_error = []
+    bandpower = {'T':0., 'E':0., 'B':0., 'TE':0.}
+    banderror = {'T':0., 'E':0., 'B':0., 'TE':0.}
+    sum_inv_var_s = {'T':0., 'E':0., 'B':0., 'TE':0.}
+    sum_inv_var_n = {'T':0., 'E':0., 'B':0., 'TE':0.}
+    sum_tot_inv_var = {'T':0., 'E':0., 'B':0., 'TE':0.}
+
     for i in range(len(these_indices)):
-        bandpower += Dl[these_indices[i]] * wldivl[i]
-        weighted_error.append(dDl[these_indices[i]] * wldivl[i])
-        banderror += dDl[these_indices[i]] * wldivl[i]
+        bandpower['T'] += Dl_T[these_indices[i]] * wldivl_T[i]
+        bandpower['E'] += Dl_E[these_indices[i]] * wldivl_E[i]
+        bandpower['B'] += Dl_B[these_indices[i]] * wldivl_B[i]
+        bandpower['TE'] += Dl_TE[these_indices[i]] * wldivl_TE[i]
 
-    weighted_error = np.array(weighted_error)
-    #Now sum the weighted errors in a "number of observations" sense to get the final 
-    #bandpower error.
-    min_weighted_error = np.min(weighted_error)
+        sum_inv_var_s['T'] += 1./(dDl_s['T'][these_indices[i]])**2.
+        sum_inv_var_s['E'] += 1./(dDl_s['E'][these_indices[i]])**2.
+        sum_inv_var_s['B'] += 1./(dDl_s['B'][these_indices[i]])**2.
+        sum_inv_var_s['TE'] += 1./(dDl_s['TE'][these_indices[i]])**2.
 
-    quad_sum_weight = np.sqrt(np.sum(min_weighted_error/weighted_error))
+        sum_inv_var_n['T'] += 1./(dDl_n['T'][these_indices[i]])**2.
+        sum_inv_var_n['E'] += 1./(dDl_n['E'][these_indices[i]])**2.
+        sum_inv_var_n['B'] += 1./(dDl_n['B'][these_indices[i]])**2.
+        sum_inv_var_n['TE'] += 1./(dDl_n['TE'][these_indices[i]])**2.
+
+        sum_tot_inv_var['T'] += 1./(dDl_s['T'][these_indices[i]] + dDl_n['T'][these_indices[i]])**2.
+        sum_tot_inv_var['E'] += 1./(dDl_s['E'][these_indices[i]] + dDl_n['E'][these_indices[i]])**2.
+        sum_tot_inv_var['B'] += 1./(dDl_s['B'][these_indices[i]] + dDl_n['B'][these_indices[i]])**2.
+        #Note the different definition of dDl_s and dDl_n for TE.
+        sum_tot_inv_var['TE'] += 1./(dDl_s['TE'][these_indices[i]]**2. + dDl_n['TE'][these_indices[i]]**2.)
         
     #Unlike the signal bandpower, the banderrors average down in a 1/sqrt(observations) sense.
-    banderror = banderror/quad_sum_weight
+    #banderror = banderror/quad_sum_weight
+    banderror_sample = {'T':1./np.sqrt(sum_inv_var_s['T']), 'E':1./np.sqrt(sum_inv_var_s['E']),
+                        'B':1./np.sqrt(sum_inv_var_s['B']), 'TE':1./np.sqrt(sum_inv_var_s['TE'])}
 
-    return bandcenter, bandpower, banderror
+    banderror_noise = {'T':1./np.sqrt(sum_inv_var_n['T']), 'E':1./np.sqrt(sum_inv_var_n['E']),
+                       'B':1./np.sqrt(sum_inv_var_n['B']), 'TE':1./np.sqrt(sum_inv_var_n['TE'])}
+    banderror = {'T':1./np.sqrt(sum_tot_inv_var['T']), 'E':1./np.sqrt(sum_tot_inv_var['E']),
+                 'B':1./np.sqrt(sum_tot_inv_var['B']), 'TE':1./np.sqrt(sum_tot_inv_var['TE'])}
+
+    return bandcenter, bandpower, banderror, banderror_sample, banderror_noise
 #####################################################################################################
 
 #####################################################################################################
@@ -707,7 +850,8 @@ def get_cosmomc_bandpowers(ell,Cl,window, dDl=0.,no_errors=True):
 #####################################################################################################
 
 #####################################################################################################
-def get_bandpower_spectrum(ell,Dl,sky_coverage,depth,beamwidth,delta_ell,do_random=False,
+def get_bandpower_spectrum(ell,Dl_T,Dl_E, Dl_B, Dl_TE, sky_coverage,depth_T,depth_P, 
+                           beamwidth,delta_ell,raw=False,
                            windows=None):
     '''
     Return band centers, band powers, and band errors.  Assumes Knox formula error bars,
@@ -726,35 +870,79 @@ def get_bandpower_spectrum(ell,Dl,sky_coverage,depth,beamwidth,delta_ell,do_rand
         bandpowers: Effective bandpowers for delta_ell binned Dls.
         banderrors: Knox formula error bars assuming a purely Gaussian beam.
     '''
-    if not do_random:
-        dDl = get_knox_errors(ell,Dl,sky_coverage=sky_coverage,map_depth=depth, 
-                           beamwidth=beamwidth)
-    else:
-        dDl = np.zeros(len(ell))
+    dDl_s, dDl_n = get_knox_errors(ell,Dl_T, Dl_E, Dl_B, Dl_TE,
+                                   sky_coverage=sky_coverage,
+                                   map_depth_T=depth_T, map_depth_P=depth_P, 
+                                   beamwidth=beamwidth, 
+                                   sample_var=True, noise_var=True, raw=raw)
     if windows == None:
-        windows = make_knox_bandpower_windows(ell,Dl,delta_ell=delta_ell,sky_coverage=sky_coverage,
-                                        map_depth=depth, beamwidth=beamwidth)
+        windows = make_knox_bandpower_windows(ell,Dl_T, Dl_E, Dl_B, Dl_TE,
+                                              delta_ell=delta_ell,sky_coverage=sky_coverage,
+                                              map_depth_T=depth_T, map_depth_P=depth_P, 
+                                              beamwidth=beamwidth, raw=raw)
 
-    bandcenters = []
-    bandpowers = []
-    banderrors = []
-    for key in windows.keys():
-        window = windows[key]
-        this_bandcenter, this_bandpower, this_banderror = get_bandpower(ell,Dl,dDl,window)
-        bandcenters.append(this_bandcenter)
-        bandpowers.append(this_bandpower)
-        banderrors.append(this_banderror)
+    bandcenters = {'T':[], 'E':[], 'B':[], 'TE':[]}
+    bandpowers = {'T':[], 'E':[], 'B':[], 'TE':[]}
+    banderrors_sample = {'T':[], 'E':[], 'B':[], 'TE':[]}
+    banderrors_noise = {'T':[], 'E':[], 'B':[], 'TE':[]}
+    banderrors = {'T':[], 'E':[], 'B':[], 'TE':[]}
 
-    bandcenters = np.array(bandcenters)
-    bandpowers = np.array(bandpowers)
-    banderrors = np.array(banderrors)
+    for key in windows['windowsT'].keys():
+        window = {'T':windows['windowsT'][key], 'E':windows['windowsE'][key], 
+                  'B':windows['windowsB'][key], 'TE':windows['windowsTE'][key]}
 
-    sorted_indices = sorted(range(len(bandcenters)), key=lambda k: bandcenters[k])
-    bandcenters = bandcenters[sorted_indices]
-    bandpowers = bandpowers[sorted_indices]
-    banderrors = banderrors[sorted_indices]
+        this_bandcenter, this_bandpower, this_banderror, \
+        this_banderror_sample, this_banderror_noise = get_bandpower(ell,Dl_T, Dl_E, Dl_B, Dl_TE,
+                                                                    dDl_s,dDl_n,window)
+        bandcenters['T'].append(this_bandcenter['T'])
+        bandpowers['T'].append(this_bandpower['T'])
+        banderrors_sample['T'].append(this_banderror_sample['T'])
+        banderrors_noise['T'].append(this_banderror_noise['T'])
+        banderrors['T'].append(this_banderror['T'])
 
-    return bandcenters, bandpowers, banderrors
+        bandcenters['E'].append(this_bandcenter['E'])
+        bandpowers['E'].append(this_bandpower['E'])
+        banderrors_sample['E'].append(this_banderror_sample['E'])
+        banderrors_noise['E'].append(this_banderror_noise['E'])
+        banderrors['E'].append(this_banderror['E'])
+
+        bandcenters['B'].append(this_bandcenter['B'])
+        bandpowers['B'].append(this_bandpower['B'])
+        banderrors_sample['B'].append(this_banderror_sample['B'])
+        banderrors_noise['B'].append(this_banderror_noise['B'])
+        banderrors['B'].append(this_banderror['B'])
+
+        bandcenters['TE'].append(this_bandcenter['TE'])
+        bandpowers['TE'].append(this_bandpower['TE'])
+        banderrors_sample['TE'].append(this_banderror_sample['TE'])
+        banderrors_noise['TE'].append(this_banderror_noise['TE'])
+        banderrors['TE'].append(this_banderror['TE'])
+
+    bandcenters['T'] = np.array(bandcenters['T'])
+    bandpowers['T'] = np.array(bandpowers['T'])
+    banderrors_sample['T'] = np.array(banderrors_sample['T'])
+    banderrors_noise['T'] = np.array(banderrors_noise['T'])
+    banderrors['T'] = np.array(banderrors['T'])
+
+    bandcenters['E'] = np.array(bandcenters['E'])
+    bandpowers['E'] = np.array(bandpowers['E'])
+    banderrors_sample['E'] = np.array(banderrors_sample['E'])
+    banderrors_noise['E'] = np.array(banderrors_noise['E'])
+    banderrors['E'] = np.array(banderrors['E'])
+
+    bandcenters['B'] = np.array(bandcenters['B'])
+    bandpowers['B'] = np.array(bandpowers['B'])
+    banderrors_sample['B'] = np.array(banderrors_sample['B'])
+    banderrors_noise['B'] = np.array(banderrors_noise['B'])
+    banderrors['B'] = np.array(banderrors['B'])
+
+    bandcenters['TE'] = np.array(bandcenters['TE'])
+    bandpowers['TE'] = np.array(bandpowers['TE'])
+    banderrors_sample['TE'] = np.array(banderrors_sample['TE'])
+    banderrors_noise['TE'] = np.array(banderrors_noise['TE'])
+    banderrors['TE'] = np.array(banderrors['TE'])
+
+    return bandcenters, bandpowers, banderrors, banderrors_sample, banderrors_noise
 #####################################################################################################
 
 #####################################################################################################
@@ -815,8 +1003,3 @@ def get_cov_matrix(bandpowers1, avg_bandpowers1,
     else:
         return cov
 #####################################################################################################
-
-
-
-
-
