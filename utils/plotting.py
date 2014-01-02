@@ -2,8 +2,10 @@ import numpy as np
 import pylab as py
 
 def plot_TT(ell,bandpower,banderror=None, tell=None,tTT=None,
-               label='', interactive=True, color='b', new_figure=False,
-               xlog=False, ylog=True, xlim=[100,5000], ylim=[1,7000], plot_theory=True):
+               label='', interactive=True, color='k', new_figure=False,
+               xlog=False, ylog=True, xlim=[100,5000], ylim=[1,7000], 
+               plot_theory=True,
+               no_label=False):
     '''
     A standard plotter for E-mode polarization power spectra.
     '''
@@ -51,15 +53,18 @@ def plot_TT(ell,bandpower,banderror=None, tell=None,tTT=None,
     py.xlabel('Multipole $l$')
     py.ylabel('$l(l+1)/2\pi\, C^{TT}_l$'+' [$\mu$'+'K'+'$^2$]')
     py.title('TT Power Spectrum')
-    if ylog:
-        py.legend(loc=3)
-    else:
-        py.legend()
+    if not no_label:
+        if ylog:
+            py.legend(loc=3)
+        else:
+            py.legend()
 
 
 def plot_TE(ell,bandpower,banderror=None, tell=None,tTE=None,
-               label='', interactive=True, color='b', new_figure=False,
-               xlog=False, ylog=False, xlim=[100,3000], ylim=[-150, 150], plot_theory=True):
+               label='', interactive=True, color='g', new_figure=False,
+               xlog=False, ylog=False, xlim=[100,3000], ylim=[-150, 150], 
+               plot_theory=True,
+               no_label=False):
     '''
     A standard plotter for TE cross-correlation power spectra.
     '''
@@ -109,18 +114,21 @@ def plot_TE(ell,bandpower,banderror=None, tell=None,tTE=None,
     py.xlabel('Multipole $l$')
     py.ylabel('$l(l+1)/2\pi\, C^{TE}_l$'+' [$\mu$'+'K'+'$^2$]')
     py.title('TE Power Spectrum')
-    if ylog:
-        py.legend(loc=3)
-    elif xlog and ylog:
-        py.legend(loc=2)
-    else:
-        py.legend()
+    if not no_label:
+        if ylog:
+            py.legend(loc=3)
+        elif xlog and ylog:
+            py.legend(loc=2)
+        else:
+            py.legend()
 
 
 
 def plot_EE(ell,bandpower,banderror=None, tell=None,tEE=None,
-               label='', interactive=True, color='b', new_figure=False,
-               xlog=False, ylog=True, xlim=[100,5000], ylim=[0.1, 50], plot_theory=True):
+               label='', interactive=True, color='r', new_figure=False,
+               xlog=False, ylog=True, xlim=[100,5000], ylim=[0.1, 50], 
+               plot_theory=True,
+               no_label=False):
     '''
     A standard plotter for E-mode polarization power spectra.
     '''
@@ -167,17 +175,19 @@ def plot_EE(ell,bandpower,banderror=None, tell=None,tEE=None,
     py.xlabel('Multipole $l$')
     py.ylabel('$l(l+1)/2\pi\, C^{EE}_l$'+' [$\mu$'+'K'+'$^2$]')
     py.title('EE Power Spectrum')
-    if ylog:
-        py.legend(loc=3)
-    elif xlog and ylog:
-        py.legend(loc=2)
-    else:
-        py.legend()
+    if not no_label:
+        if ylog:
+            py.legend(loc=3)
+        elif xlog and ylog:
+            py.legend(loc=2)
+        else:
+            py.legend()
 
 
 def plot_BB(ell,bandpower,banderror=None, tell=None,tBB=None,
                label='', interactive=True, color='b', new_figure=False,
-               xlog=False, ylog=True, xlim=[100,5000], ylim=[1e-3, 3.], plot_theory=True):
+               xlog=False, ylog=True, xlim=[100,5000], ylim=[1e-3, 3.], 
+               plot_theory=True, no_label=False):
     '''
     A standard plotter for E-mode polarization power spectra.
     '''
@@ -224,11 +234,12 @@ def plot_BB(ell,bandpower,banderror=None, tell=None,tBB=None,
     py.xlabel('Multipole $l$')
     py.ylabel('$l(l+1)/2\pi\, C^{BB}_l$'+' [$\mu$'+'K'+'$^2$]')
     py.title('BB Power Spectrum')
-    if ylog:
-        py.legend(loc=7)
-    elif xlog and ylog:
-        py.legend(loc=2)
-    else:
-        py.legend()
+    if not no_label:
+        if ylog:
+            py.legend(loc=7)
+        elif xlog and ylog:
+            py.legend(loc=2)
+        else:
+            py.legend()
     
     

@@ -2,16 +2,16 @@ import numpy as np
 import pylab as py
 import glob as glob
 import copy
-from fisher_util import *
+from fisher.forecast.fisher_util import *
 py.ion()
 
-params = ['hubble','ombh2','omch2','scalar_spectral_index','scalar_amp','re_optical_depth']
-#params = ['ombh2','omch2']
+#params = ['hubble','ombh2','omch2','scalar_spectral_index','scalar_amp','re_optical_depth']
+params = ['ombh2','omch2']
 
 scale_factors = [1.,1e2,1e4,1e2]
 #spec_key = ['dTT', 'dEE', 'dTE']
-spec_key = ['dEE','dTE']
-spectrum = 'dTT'
+spec_key = ['dTE', 'dEE']
+spectrum = 'dEE'
 max_band_num = [52,52,52,0,52,0]
 min_band_num = [11,11,11,0,11,0]
 cond_offset = [np.sum(max_band_num[:0]),np.sum(max_band_num[:1]),np.sum(max_band_num[:2]),
@@ -23,8 +23,8 @@ condition = True
 plot_spectra = False
 do_covmat=False
 
-allfiles = glob.glob('params_LCDM_*.dat')
-newdat_file = 'sptpol_calerr_0p01.newdat'
+allfiles = glob.glob('camb_spectra/params_LCDM_*.dat')
+newdat_file = '../bandpowers/sptpol_2012_calerr_0p01.newdat'
 ################################################################################
 
 #Grab the spectrum of interest. All I need is the all_cov matrix at the end of the file.
@@ -60,8 +60,8 @@ for i in range(len(spec_key)):
         max_bin = max_band_num[5]
 
     ell_centers += all_ell_center[min_bin-1:max_bin]
-    ell_mins += ell_min[min_bin-1:max_bin]
-    ell_maxs += ell_max[min_bin-1:max_bin]
+    ell_mins += ell_min#[min_bin-1:max_bin]
+    ell_maxs += ell_max#[min_bin-1:max_bin]
 
 ell_centers = np.array(ell_centers)
 ell_mins = np.array(ell_mins)
@@ -145,11 +145,11 @@ all_Cl = []
 for i in range(len(params)):
     param_files = []
     for j in range(len(allfiles)):
-        if allfiles[j].split('_')[3] == params[i] and \
-           allfiles[j].split('_')[-1] == 'lensedtotCls.dat':
+        if allfiles[j].split('/')[1].split('_')[3] == params[i] and \
+           allfiles[j].split('/')[1].split('_')[-1] == 'lensedtotCls.dat':
             param_files.append(allfiles[j])
-        elif allfiles[j].split('_')[3:5] == params[i].split('_')[0:2] and \
-             allfiles[j].split('_')[-1] == 'lensedtotCls.dat':
+        elif allfiles[j].split('/')[1].split('_')[3:5] == params[i].split('_')[0:2] and \
+             allfiles[j].split('/')[1].split('_')[-1] == 'lensedtotCls.dat':
             param_files.append(allfiles[j])
     #Obtain the C_l derivatives for this parameter.
     dCldp, Cl = Cl_derivative(param_files, raw=raw)
@@ -160,15 +160,15 @@ for i in range(len(params)):
 
     #plot them for fun.
     if plot_spectra:
-        py.loglog(dCldp[spectrum][0], np.abs(dCldp[spectrum][1])*h, label=params[i]+' - h='+str(h))
-        #py.loglog(dCldp[spectrum][0], np.abs(dCldp[spectrum][1]), label=params[i]+' - h='+str(h))
+        #py.loglog(dCldp[spectrum][0], np.abs(dCldp[spectrum][1])*h, label=params[i]+' - h='+str(h))
+        py.loglog(dCldp[spectrum][0], np.abs(dCldp[spectrum][1]), label=params[i]+' - h='+str(h))
 if plot_spectra:
     py.legend(loc='lower left')
-    py.title('h * Abs($\partial C_l/\partial p$)')
-    #py.title('Abs($\partial C_l/\partial p$)')
+    #py.title('h * Abs($\partial C_l/\partial p$)')
+    py.title('Abs($\partial C_l/\partial p$)')
     py.xlabel('Multipole')
-    py.ylabel('h * Abs($\partial C_l/\partial p$)')
-    #py.ylabel('Abs($\partial C_l/\partial p$)')
+    #py.ylabel('h * Abs($\partial C_l/\partial p$)')
+    py.ylabel('Abs($\partial C_l/\partial p$)')
 
 #Now bin the partial derivatives into bandpower partials, and make into a num_params x num_bands matrix.
 binned_partials = []
@@ -195,7 +195,7 @@ for i in range(len(params)):
             max_bin = max_band_num[5]
 
         for j in range(len(ell_min)):
-            if (j < min_bin -1) or (j > max_bin-1): continue   
+            #if (j < min_bin -1) or (j > max_bin-1): continue   
             if ell_min[j] < 2.: ell_min[j] = 2.
             these_ells = all_dCldp[i][spec_key[k]][0]
             this_partial_row.append(np.mean(all_dCldp[i][spec_key[k]][1][int(ell_min[j]-2):int(ell_max[j]-1)]))
@@ -213,14 +213,14 @@ param_cov = np.linalg.inv(fisher)
 #Parameters are: omegabh2, omegach2, theta, tau, ns, log(10^10 A)
 #SPTpol params = ['hubble','ombh2','omch2','ns','As','tau']
 #d2 = open('planck.covmat', 'r').read().split('\n')[:-1]
-d2 = open('base_planck_lowl_lowLike_highL.covmat', 'r').read().split('\n')[:-1]
-d = open('my_planck_lcdm.covmat', 'r').read().split('\n')[:-1]
+d = open('../covmats/base_planck_lowl_lowLike.covmat', 'r').read().split('\n')[:-1]
+d2 = open('../covmats/my_planck_lcdm.covmat', 'r').read().split('\n')[:-1]
 full_planck_param_cov = np.zeros((6,6))
 full_planck_param_cov2 = np.zeros((6,6))
 for i in range(6):
     for j in range(6):
-        full_planck_param_cov[i,j] = filter(None, d[i+1].split('\t'))[j]
-        full_planck_param_cov2[i,j] = filter(None, d2[i+1].split(' '))[j]
+        full_planck_param_cov[i,j] = filter(None, d[i+1].split(' '))[j]
+        full_planck_param_cov2[i,j] = filter(None, d2[i+1].split('\t'))[j]
 
 #Make small param_cov matrices for the parameters you care about.
 #ombh2, omch2, ns
@@ -246,9 +246,12 @@ improvement_ratio = []
 for i in range(tot_param_cov.shape[0]):
     improvement_ratio.append(np.sqrt(planck_param_cov[i,i]/np.abs(tot_param_cov[i,i])))
 
+print 'Improvement from ', spec_key, ' on H, omegabh2, omegach2:\n'
+print improvement_ratio
+
+
 
 if do_covmat:
-
     #Make a planck correlation matrix
     full_planck_corr = np.zeros((6,6))
     full_planck_corr2 = np.zeros((6,6))

@@ -70,7 +70,7 @@ def read_spectra(filename, withphi=False, raw=False):
 #####################################################################################################
 
 #####################################################################################################
-def Cl_derivative(model_files, raw=False):
+def Cl_derivative(model_files, param_name=None, rescale_factor=1., raw=False):
     '''
     Find the local derivative of each C_l between model parameter points.
     
@@ -84,7 +84,13 @@ def Cl_derivative(model_files, raw=False):
                input model parameter for each auto/cross spectrum.
     '''
     #What is the model parameter step size?
-    h = np.longdouble(model_files[2].split('_')[-2]) - np.longdouble(model_files[0].split('_')[-2])
+    if param_name =='scalar_amp':
+        h = np.log(1e10*np.longdouble(model_files[2].split('_')[-2])) -\
+            np.log(1e10*np.longdouble(model_files[0].split('_')[-2]))
+    else:
+        h = np.longdouble(model_files[2].split('_')[-2]) - np.longdouble(model_files[0].split('_')[-2])
+
+    print 'Parameter step size: ', h/2.
 
     #Read in the three spectra.
     ell1, TT1, EE1, BB1, TE1 = read_spectra(model_files[0], raw=raw)
@@ -102,12 +108,12 @@ def Cl_derivative(model_files, raw=False):
     elif len(ell3) == min_ell_range:
         ell = ell3
 
-    dTT = (np.longdouble(TT3[:len(ell)])-np.longdouble(TT1[:len(ell)]))*one_over_h
-    dEE = (np.longdouble(EE3[:len(ell)])-np.longdouble(EE1[:len(ell)]))*one_over_h
-    dBB = (np.longdouble(BB3[:len(ell)])-np.longdouble(BB1[:len(ell)]))*one_over_h
-    dTE = (np.longdouble(TE3[:len(ell)])-np.longdouble(TE1[:len(ell)]))*one_over_h
+    dTT = (np.longdouble(TT3[:len(ell)])-np.longdouble(TT1[:len(ell)]))*one_over_h*rescale_factor
+    dEE = (np.longdouble(EE3[:len(ell)])-np.longdouble(EE1[:len(ell)]))*one_over_h*rescale_factor
+    dBB = (np.longdouble(BB3[:len(ell)])-np.longdouble(BB1[:len(ell)]))*one_over_h*rescale_factor
+    dTE = (np.longdouble(TE3[:len(ell)])-np.longdouble(TE1[:len(ell)]))*one_over_h*rescale_factor
 
-    dCldp = {'h':h, 'dTT':(ell,dTT), 'dEE':(ell,dEE), 'dBB':(ell,dBB), 'dTE':(ell,dTE)}
+    dCldp = {'h':h, 'dTT':[ell,dTT], 'dEE':[ell,dEE], 'dBB':[ell,dBB], 'dTE':[ell,dTE]}
     Cl = {'ell':ell,'TT':TT2[:len(ell)],'EE':EE2[:len(ell)],'BB':BB2[:len(ell)],'TE':TE2[:len(ell)]}
 
     return dCldp, Cl
@@ -546,7 +552,8 @@ def write_window_functions(window_root='window_sptpol_bandpowerT_20130715', wind
 def get_knox_errors(ell, Dl_T, Dl_E, Dl_B, Dl_TE, sky_coverage, 
                     map_depth_T, map_depth_P, 
                     beamwidth, 
-                    sample_var=True, noise_var=True, raw=False):
+                    sample_var=True, noise_var=True, raw=False,
+                    cross_var=False):
     '''
     Given an input theory spectrum, sky coverage in deg^2, pixel size in arcminutes, 
     map depth in uK-arcmin, and (gaussian) beam FWHM in arcmins, 
@@ -566,24 +573,28 @@ def get_knox_errors(ell, Dl_T, Dl_E, Dl_B, Dl_TE, sky_coverage,
     sigma_b = beamwidth/np.sqrt(8.*np.log(2))*np.pi/60./180.
 
     #Define inverse beam function.
-    Bl = np.exp(ell*sigma_b)
+    Bl_inv = np.exp(ell*sigma_b)
 
     if raw == False:
-        noise_T = (ell*(ell+1.)/2./np.pi * w_T*Bl**2.)
-        noise_P = (ell*(ell+1.)/2./np.pi * w_P*Bl**2.)
+        noise_T = (ell*(ell+1.)/2./np.pi * w_T*Bl_inv**2.)
+        noise_P = (ell*(ell+1.)/2./np.pi * w_P*Bl_inv**2.)
     else:
-        noise_T = w_T*Bl**2.
-        noise_P = w_P*Bl**2.
+        noise_T = w_T*Bl_inv**2.
+        noise_P = w_P*Bl_inv**2.
+
+    cross_var_T_E = 2./((2.*ell + 1.)*fsky) * Dl_TE**2.
+    cross_var_T_TE = 2./((2.*ell + 1.)*fsky) * Dl_TE * (Dl_T + w_T*Bl_inv**2.)
+    cross_var_E_TE = 2./((2.*ell + 1.)*fsky) * Dl_TE * (Dl_E + w_P*Bl_inv**2.)
 
     sample_err_T = np.sqrt(2./((2.*ell + 1.)*fsky))*Dl_T
     sample_err_E = np.sqrt(2./((2.*ell + 1.)*fsky))*Dl_E
     sample_err_B = np.sqrt(2./((2.*ell + 1.)*fsky))*Dl_B
-    sample_err_TE = np.sqrt(1./((2.*ell + 1.)*fsky))*np.sqrt(Dl_TE**2. + Dl_T*Dl_E)
+    sample_err_TE = np.sqrt(1./((2.*ell + 1.)*fsky) * Dl_TE**2.)
 
     noise_err_T = np.sqrt(2./((2.*ell + 1.)*fsky)) * noise_T
     noise_err_E = np.sqrt(2./((2.*ell + 1.)*fsky)) * noise_P
     noise_err_B = np.sqrt(2./((2.*ell + 1.)*fsky)) * noise_P
-    noise_err_TE = np.sqrt(1./((2.*ell + 1.)*fsky)) * np.sqrt(Dl_E*noise_T + Dl_T*noise_P + noise_T*noise_P)
+    noise_err_TE = np.sqrt(1./((2.*ell + 1.)*fsky)) * np.sqrt(Dl_T*Dl_E + Dl_E*noise_T + Dl_T*noise_P + noise_T*noise_P)
 
     sample_err = {'T':sample_err_T,'E':sample_err_E,'B':sample_err_B,'TE':sample_err_TE}
     noise_err = {'T':noise_err_T,'E':noise_err_E,'B':noise_err_B,'TE':noise_err_TE}
@@ -591,13 +602,25 @@ def get_knox_errors(ell, Dl_T, Dl_E, Dl_B, Dl_TE, sky_coverage,
                  'TE':np.sqrt(sample_err_TE**2 + noise_err_TE**2.)}
 
     if not sample_var and not noise_var:
-        return total_err
+        if not cross_var:
+            return total_err
+        else:
+            return total_err, cross_var_T_E, cross_var_T_TE, cross_var_E_TE
     if sample_var and not noise_var:
-        return sample_err
+        if not cross_var:
+            return sample_err
+        else:
+            return sample_err, cross_var_T_E, cross_var_T_TE, cross_var_E_TE
     if not sample_var and noise_var:
-        return noise_err
+        if not cross_var:
+            return noise_err
+        else:
+            return noise_err, cross_var_T_E, cross_var_T_TE, cross_var_E_TE
     if sample_var and noise_var:
-        return sample_err, noise_err
+        if not cross_var:
+            return sample_err, noise_err
+        else:
+            return sample_err, noise_err, cross_var_T_E, cross_var_T_TE, cross_var_E_TE
     
 #####################################################################################################
 
@@ -622,7 +645,7 @@ def make_knox_bandpower_windows(ell, Dl_T, Dl_E, Dl_B, Dl_TE,
     sigma_b = beamwidth/np.sqrt(8.*np.log(2))*np.pi/60./180.
 
     #Define inverse beam function.
-    Bl = np.exp(ell*sigma_b)
+    Bl_inv = np.exp(ell*sigma_b)
 
     #Now define the Fisher matrix (basically inverse of knox error^2) divided 
     #by kronecker \delta_llprime
@@ -631,10 +654,10 @@ def make_knox_bandpower_windows(ell, Dl_T, Dl_E, Dl_B, Dl_TE,
     else:
         w_T *= ell*(ell+1.)/2./np.pi
         w_P *= ell*(ell+1.)/2./np.pi
-    fl_T = (2.*ell + 1.)*fsky/2. * (Dl_T + w_T*Bl**2.)**-2. 
-    fl_E = (2.*ell + 1.)*fsky/2. * (Dl_E + w_P*Bl**2.)**-2. 
-    fl_B = (2.*ell + 1.)*fsky/2. * (Dl_B + w_P*Bl**2.)**-2.
-    fl_TE = (2.*ell + 1.)*fsky * (Dl_TE**2. + (Dl_T + w_T*Bl**2.)*(Dl_E + w_P*Bl**2.))**-1.
+    fl_T = (2.*ell + 1.)*fsky/2. * (Dl_T + w_T*Bl_inv**2.)**-2. 
+    fl_E = (2.*ell + 1.)*fsky/2. * (Dl_E + w_P*Bl_inv**2.)**-2. 
+    fl_B = (2.*ell + 1.)*fsky/2. * (Dl_B + w_P*Bl_inv**2.)**-2.
+    fl_TE = (2.*ell + 1.)*fsky * (Dl_TE**2. + (Dl_T + w_T*Bl_inv**2.)*(Dl_E + w_P*Bl_inv**2.))**-1.
 
  
     #Now loop over each bandpower bin
@@ -659,7 +682,7 @@ def make_knox_bandpower_windows(ell, Dl_T, Dl_E, Dl_B, Dl_TE,
                 windows['windowsTE']['window_'+str(counter)] = {}
                 windows['windowsTE']['window_'+str(counter)]['ell'] = []
                 windows['windowsTE']['window_'+str(counter)]['wldivl'] = []
-
+            
             windows['windowsT']['window_'+str(counter)]['wldivl'].append(fl_T[i])
             windows['windowsT']['window_'+str(counter)]['ell'].append(ell[i])
             windows['windowsE']['window_'+str(counter)]['wldivl'].append(fl_E[i])
@@ -946,18 +969,24 @@ def get_bandpower_spectrum(ell,Dl_T,Dl_E, Dl_B, Dl_TE, sky_coverage,depth_T,dept
 #####################################################################################################
 
 #####################################################################################################
-def get_Dl_realization(Dl, dDl):
+def get_Dl_realization(Dl_T, Dl_E, Dl_B, Dl_TE, dDl):
     '''
     Take an input spectrum (in Dl), and Knox error bars for Dl and create num_spectra
     realizations of Dl, where for each realization Gaussian random noise has been added
     to the raw Dl with Know error dDl standard deviation.
     '''
 
-    new_Dl = []
-    for j in range(len(Dl)):
-        new_Dl.append(Dl[j] + dDl[j]*np.random.randn(1)[0])
+    new_Dl = {'T':[], 'E':[], 'B':[], 'TE':[]}
+    for j in range(len(Dl_T)):
+        new_Dl['T'].append(Dl_T[j] + dDl['T'][j]*np.random.randn(1)[0])
+        new_Dl['E'].append(Dl_E[j] + dDl['E'][j]*np.random.randn(1)[0])
+        new_Dl['B'].append(Dl_B[j] + dDl['B'][j]*np.random.randn(1)[0])
+        new_Dl['TE'].append(Dl_TE[j] + dDl['TE'][j]*np.random.randn(1)[0])
 
-    new_Dl = np.array(new_Dl)
+    new_Dl['T'] = np.array(new_Dl['T'])
+    new_Dl['E'] = np.array(new_Dl['E'])
+    new_Dl['B'] = np.array(new_Dl['B'])
+    new_Dl['TE'] = np.array(new_Dl['TE'])
     
     return new_Dl
 #####################################################################################################
@@ -983,6 +1012,7 @@ def get_cov_matrix(bandpowers1, avg_bandpowers1,
         spectrum1 = np.array([bandpowers1[i][good_bands] - avg_bandpowers1[good_bands]]) 
         spectrum2 = np.array([bandpowers2[i][good_bands] - avg_bandpowers2[good_bands]])
 
+        #Calculate the covariance by taking the outer product and dividing by N-1
         cov += np.dot(spectrum1.T, spectrum2)
 
     cov /= len(bandpowers1) - 1.
@@ -1002,4 +1032,66 @@ def get_cov_matrix(bandpowers1, avg_bandpowers1,
         return cov, rho
     else:
         return cov
+#####################################################################################################
+
+
+#####################################################################################################
+def get_cov_matrix_general(bandcenters, fsky,
+                           avg_bandpowersAC, avg_bandpowersBD,
+                           avg_bandpowersAD, avg_bandpowersBC,
+                           good_bands,
+                           return_rho=True, condition=True, order=5):
+    '''
+    Calculate bandpower spectrum covariance matrix for two sets of bandpowers.  If bandpowers2 and
+    its avg are left set to None, then the output is the covariance of the spectrum with itself.
+    '''
+
+    #Calculate the covariance by taking the outer product and dividing by N-1
+    cov = np.dot(np.array([avg_bandpowersAC[good_bands]]).T, np.array([avg_bandpowersBD[good_bands]])) +\
+          np.dot(np.array([avg_bandpowersAD[good_bands]]).T, np.array([avg_bandpowersBC[good_bands]]))
+
+    cov /= (2.*bandcenters[good_bands] + 1.)*fsky
+
+    #Now calculate the correlation matrix.
+    if return_rho:
+        rho = cov*0.0
+        for i in range(cov.shape[0]):
+            for j in range(cov.shape[1]):
+                rho[i,j] = cov[i,j]/np.sqrt(cov[i,i]*cov[j,j])
+
+    #If requested,  condition the cov matrix.
+    if condition:
+        cov = ccm(cov, order=order, noaverage=False)
+        
+    if return_rho:
+        return cov, rho
+    else:
+        return cov
+#####################################################################################################
+
+#####################################################################################################
+def get_cross_spec(in1, in2, mu, spectrum_order):
+    '''
+    Given spectrum names, return the proper averaged spectrum to be included in the 
+    generalized cov matrix calculation.
+    '''
+
+    if in1=='T150' and in2=='T150': return mu[0]
+    elif in1=='T150' and in2=='E150': return mu[2]
+    elif in1=='T150' and in2=='T90': return (mu[0] + mu[3])/2.
+    elif in1=='T150' and in2=='E90': return (mu[2] + mu[5])/2.
+    elif in1=='E150' and in2=='E150': return mu[1]
+    elif in1=='E150' and in2=='T90': return (mu[2] + mu[5])/2.
+    elif in1=='E150' and in2=='E90': return (mu[1] + mu[4])/2.
+    elif in1=='T90' and in2=='T90': return mu[3]
+    elif in1=='T90' and in2=='E90': return mu[5]
+    elif in1=='E90' and in2=='E90': return mu[4]
+
+    elif in2=='T150' and in1=='E150': return mu[2]
+    elif in2=='T150' and in1=='T90': return (mu[0] + mu[3])/2.
+    elif in2=='T150' and in1=='E90': return (mu[2] + mu[5])/2.
+    elif in2=='E150' and in1=='T90': return (mu[2] + mu[5])/2.
+    elif in2=='E150' and in1=='E90': return (mu[1] + mu[4])/2.
+    elif in2=='T90' and in1=='E90': return mu[5]
+
 #####################################################################################################

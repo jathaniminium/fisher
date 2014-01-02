@@ -13,19 +13,19 @@ beamwidth150 = 1.17
 beamwidth90 = 0.95*2.
 
 #Field coverage
-sky_coverage = 100.
+sky_coverage = 535.
 
 #Field depths
-Tdepth150 = 9.
-Pdepth150 = 10.
-Tdepth90 = 30.75
-Pdepth90 = 34.4
+Tdepth150 = 10.8
+Pdepth150 = 14.1
+Tdepth90 = 22.2
+Pdepth90 = 30.4
 
 #Foregrounds (D_{3000} values in \muK^2)
 czero_psEE = 0.5
 czero_psBB = 0.05
 
-num_spectra = 0
+num_spectra = 50
 
 #Bandpower properties
 lmin = 500.
@@ -188,21 +188,19 @@ cov_T90_E90 = 2./((2.*bandcenter90['TE'] + 1.)*fsky)*bandpower90['TE']**2./delta
 cov_T90_TE90 = 2./((2.*bandcenter90['T'] + 1.)*fsky)*bandpower90['TE']*(bandpower90['T']+noise_T90)/delta_ell
 cov_E90_TE90 = 2./((2.*bandcenter90['E'] + 1.)*fsky)*bandpower90['TE']*(bandpower90['E']+noise_P90)/delta_ell
 
-cov_T90_T150 = 2./((2.*bandcenter150['T'] + 1.)*fsky)*(bandpower90['T']+noise_T90)*(bandpower150['T']+noise_T150)/delta_ell
-cov_E90_E150 = 2./((2.*bandcenter150['E'] + 1.)*fsky)*(bandpower90['E']+noise_P90)*(bandpower150['E']+noise_P150)/delta_ell
-cov_B90_B150 = 2./((2.*bandcenter150['B'] + 1.)*fsky)*(bandpower90['B']+noise_P90)*(bandpower150['B']+noise_P150)/delta_ell
+cov_T90_T150 = 2./((2.*bandcenter150['T'] + 1.)*fsky)*(bandpower90['T'])*(bandpower150['T'])/delta_ell
+cov_E90_E150 = 2./((2.*bandcenter150['E'] + 1.)*fsky)*(bandpower90['E'])*(bandpower150['E'])/delta_ell
+cov_B90_B150 = 2./((2.*bandcenter150['B'] + 1.)*fsky)*(bandpower90['B'])*(bandpower150['B'])/delta_ell
 
-cov_TE90_TE150 = 1./((2.*bandcenter150['TE'] + 1.)*fsky)*(bandpower90['TE']**2. +\
-                                                       (bandpower90['T'] + noise_T90) *\
-                                                       (bandpower90['E'] + noise_P90))/delta_ell
+cov_TE90_TE150 = 1./((2.*bandcenter150['TE'] + 1.)*fsky)*(bandpower90['TE']*bandpower150['TE'] +\
+                                                       (bandpower90['T'])*(bandpower150['E']))/delta_ell
 
 cov_T90_E150 = 2./((2.*bandcenter150['TE'] + 1.)*fsky)*bandpower90['TE']*bandpower150['TE']/delta_ell
 
-cov_T90_TE150 = 2./((2.*bandcenter150['T'] + 1.)*fsky)*bandpower150['TE']*(bandpower90['T']+noise_T90)/delta_ell
-cov_E90_TE150 = 2./((2.*bandcenter150['E'] + 1.)*fsky)*bandpower150['TE']*(bandpower90['E']+noise_P90)/delta_ell
+cov_T90_TE150 = 2./((2.*bandcenter150['T'] + 1.)*fsky)*bandpower150['TE']*(bandpower90['T'])/delta_ell
 
-cov_T150_TE90 = 2./((2.*bandcenter150['T'] + 1.)*fsky)*bandpower90['TE']*(bandpower150['T']+noise_T150)/delta_ell
-cov_E150_TE90 = 2./((2.*bandcenter150['E'] + 1.)*fsky)*bandpower90['TE']*(bandpower150['E']+noise_P150)/delta_ell
+cov_E90_TE150 = 2./((2.*bandcenter150['E'] + 1.)*fsky)*bandpower150['TE']*(bandpower90['E'])/delta_ell
+cov_TE90_E150 = 2./((2.*bandcenter150['E'] + 1.)*fsky)*bandpower90['TE']*(bandpower150['E'])/delta_ell
 
 
 windows150 = ut.make_knox_bandpower_windows(tell,tTT,tEE, tBB, tTE, delta_ell=delta_ell,sky_coverage=sky_coverage,
@@ -235,32 +233,32 @@ for i in range(len(mu)):
             this_cov[np.eye(spec_length, dtype=bool)] = cov_TE150_TE150[where_good_band]
         elif i==0 and j==1:
             this_cov[np.eye(spec_length, dtype=bool)] = cov_E150_TE150[where_good_band]
-        #elif i==0 and j==2:
-        #    this_cov[np.eye(spec_length, dtype=bool)] = cov_TE90_TE150[where_good_band]
-        #elif i==0 and j==3:
-        #    this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_TE150[where_good_band]
+        elif i==0 and j==2:
+            this_cov[np.eye(spec_length, dtype=bool)] = cov_TE90_TE150[where_good_band]
+        elif i==0 and j==3:
+            this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_TE150[where_good_band]
 
         if i==1 and j==0:
             this_cov[np.eye(spec_length, dtype=bool)] = cov_E150_TE150[where_good_band]
         elif i==1 and j==1:
             this_cov[np.eye(spec_length, dtype=bool)] = cov_E150_E150[where_good_band]
-        #elif i==1 and j==2:
-        #    this_cov[np.eye(spec_length, dtype=bool)] = cov_E150_TE90[where_good_band]
-        #    this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_E150[where_good_band]
+        elif i==1 and j==2:
+            this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_TE150[where_good_band]
+            this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_E150[where_good_band]
 
-        #if i==2 and j==0:
-        #    this_cov[np.eye(spec_length, dtype=bool)] = cov_TE90_TE150[where_good_band]
-        #elif i==2 and j==1:
-        #    this_cov[np.eye(spec_length, dtype=bool)] = cov_E150_TE90[where_good_band]
+        if i==2 and j==0:
+            this_cov[np.eye(spec_length, dtype=bool)] = cov_TE90_TE150[where_good_band]
+        elif i==2 and j==1:
+            this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_TE150[where_good_band]
         elif i==2 and j==2:
             this_cov[np.eye(spec_length, dtype=bool)] = cov_TE90_TE90[where_good_band]
         elif i==2 and j==3:
             this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_TE90[where_good_band]
 
-        #if i==3 and j==0:
-        #    this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_TE150[where_good_band]
-        #elif i==3 and j==1:
-        #    this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_E150[where_good_band]
+        if i==3 and j==0:
+            this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_TE150[where_good_band]
+        elif i==3 and j==1:
+            this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_E150[where_good_band]
         elif i==3 and j==2:
             this_cov[np.eye(spec_length, dtype=bool)] = cov_E90_TE90[where_good_band]
         elif i==3 and j==3:
